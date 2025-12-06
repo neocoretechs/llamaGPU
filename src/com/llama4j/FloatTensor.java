@@ -22,7 +22,6 @@ import jdk.incubator.vector.VectorSpecies;
  */
 public abstract class FloatTensor implements Externalizable, Comparable {
 	public static boolean DEBUG = false;
-	public static boolean USE_CUDA = true;
 	public static final boolean DO_SDOT_COMPARE = false;
     static final int VECTOR_BIT_SIZE = Integer.getInteger("llama.VectorBitSize", VectorShape.preferredShape().vectorBitSize());
     static final boolean USE_VECTOR_API = VECTOR_BIT_SIZE != 0;
@@ -92,9 +91,8 @@ public abstract class FloatTensor implements Externalizable, Comparable {
     }
     
     public float dot(int thisOffset, FloatTensor that, int thatOffset, int size) {
-      	if(FloatTensor.USE_CUDA) 
-      		return cudaDot(this, thisOffset, that, thatOffset, size);
-		return scalarDot(this, thisOffset, that, thatOffset, size);
+      	return cudaDot(this, thisOffset, that, thatOffset, size);
+		//return scalarDot(this, thisOffset, that, thatOffset, size);
     }
     
    
@@ -338,21 +336,20 @@ public abstract class FloatTensor implements Externalizable, Comparable {
     }
     
     FloatTensor softmaxInPlace(int thisOffset, int size) {
-    	if(USE_CUDA) {
     		DeviceManager.softmax(this, thisOffset, size);
     		return this;
-    	}
+    	
     	//----------------------
     	// CPU implementation for vector processing if available
     	//try (Timer timer = Timer.log("CPU SoftMax:"+String.valueOf(size),TimeUnit.MICROSECONDS)) {
     	// find max value (for numerical stability)
-    	float maxVal = max(thisOffset, size);
+    	/*float maxVal = max(thisOffset, size);
     	// exp and sum
     	mapInPlace(thisOffset, size, f -> (float) Math.exp(f - maxVal));
     	float sum = sum(thisOffset, size);
     	// normalize
     	return divideInPlace(thisOffset, size, sum);
-    	//}
+    	//}*/
     }
     /**
      * ax + y (get it? single prec. ax, plus y is saxpy)
