@@ -5,8 +5,12 @@ import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.lang.foreign.Arena;
+import java.lang.foreign.FunctionDescriptor;
+import java.lang.foreign.Linker;
 import java.lang.foreign.MemorySegment;
+import java.lang.foreign.SymbolLookup;
 import java.lang.foreign.ValueLayout;
+import java.lang.invoke.MethodHandle;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
@@ -37,10 +41,10 @@ public final class StringTensor implements Externalizable, Comparable {
 	public StringTensor() {}
 
 	public StringTensor(String s) {
-		allocate(s);
+		copy(s);
 	}
 	public StringTensor(byte[] b) {
-		allocate(b);
+		copy(b);
 	}
 
 	public Arena getArena() {
@@ -135,7 +139,19 @@ public final class StringTensor implements Externalizable, Comparable {
 	StringTensor fillInPlace(int thisOffset, int size, byte value) {
 		return mapInPlace(thisOffset, size, unused -> value);
 	}
-
+	
+	public long strlen() throws Throwable {
+		//allocate(s); assume called on ctor
+        // Link and call the native function (e.g., strlen)
+        Linker linker = Linker.nativeLinker();
+        SymbolLookup stdLib = linker.defaultLookup();
+        MemorySegment strlenAddr = stdLib.find("strlen").orElseThrow();
+        FunctionDescriptor strlenSig = FunctionDescriptor.of(ValueLayout.JAVA_LONG, ValueLayout.ADDRESS);
+        MethodHandle strlen = linker.downcallHandle(strlenAddr, strlenSig);
+        // Invoke the native function
+        return (long) strlen.invokeExact(getSegment());
+	}
+	
 	@Override
 	public void writeExternal(ObjectOutput out) throws IOException {
 		out.writeInt(size());
@@ -152,6 +168,11 @@ public final class StringTensor implements Externalizable, Comparable {
 	@Override
 	public int compareTo(Object o) {
 		return toString().compareTo(((StringTensor)o).toString());
+	}
+	
+	public static void main(String[] args) throws Throwable {
+		StringTensor s = new StringTensor(args[0]);
+		System.out.println(s+" = "+s.strlen());
 	}
 
 }
