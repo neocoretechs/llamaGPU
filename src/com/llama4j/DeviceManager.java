@@ -222,8 +222,17 @@ public final class DeviceManager {
     		throw new RuntimeException(e);
     	}
     }
-    static void runModel(StringTensor model) {
-    		MemorySegment hostSeg = model.getSegment();
+    static void loadModel(StringTensor model) {
+		MemorySegment hostSeg = model.getSegment();
+		long addr = hostSeg.address();
+		try {
+			Llama3.loadModelMH.invokeExact(addr);
+		} catch (Throwable e) {
+			throw new RuntimeException(e);
+		}
+}
+    static void runModel(StringTensor prompt) {
+    		MemorySegment hostSeg = prompt.getSegment();
     		long addr = hostSeg.address();
     		try {
     			Llama3.runModelMH.invokeExact(addr);

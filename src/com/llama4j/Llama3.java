@@ -112,6 +112,7 @@ public class Llama3 {
 	public static MethodHandle cudaInit;
 	public static MethodHandle copyDeviceToHostMH;
 	public static MethodHandle runModelMH;
+	public static MethodHandle loadModelMH;
 	
 	static {
 		NativeLoader.load();

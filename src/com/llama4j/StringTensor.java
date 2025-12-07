@@ -175,7 +175,7 @@ public final class StringTensor implements Externalizable, Comparable {
 	public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
 		int vsize = in.readInt();
 		// allocate off-heap space for headSize floats
-		memorySegment = getArena().allocate(ValueLayout.JAVA_CHAR, vsize);
+		memorySegment = getArena().allocate(ValueLayout.JAVA_BYTE, vsize);
 	}
 
 	@Override
@@ -187,7 +187,14 @@ public final class StringTensor implements Externalizable, Comparable {
 		Llama3 llama = new Llama3();
 	    NativeLoader.loadMethods();
 		StringTensor s = new StringTensor(args[0]);
-		DeviceManager.runModel(s);
+		try(Timer var = Timer.log("load model")) {
+			DeviceManager.loadModel(s);
+		}
+		StringTensor p = new StringTensor(args[1]);
+		System.out.println("prompt:"+p);
+		try(Timer var = Timer.log("run model")) {
+			DeviceManager.runModel(p);
+		}
 		//System.out.println(s+" = "+s.strlen());
 		//StringTensor y = new StringTensor(new byte[15]);
 		//y.copyFromNative();
