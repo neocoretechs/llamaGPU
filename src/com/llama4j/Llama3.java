@@ -106,10 +106,12 @@ public class Llama3 {
 	public static MethodHandle launchMatmul;
 	public static MethodHandle launchRope;
 	public static MethodHandle copyHostToDeviceMH;
-	public static MethodHandle copyDeviceToHostMH;
+	public static MethodHandle copyFromNativeMH;
 	public static MethodHandle freeDevicePtr;
 	public static MethodHandle allocDevicePtr;
 	public static MethodHandle cudaInit;
+	public static MethodHandle copyDeviceToHostMH;
+	public static MethodHandle runModelMH;
 	
 	static {
 		NativeLoader.load();

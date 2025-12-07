@@ -14,6 +14,8 @@ import java.lang.invoke.MethodHandle;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
+import com.llama4j.ffi.NativeLoader;
+
 public final class StringTensor implements Externalizable, Comparable {
 	public static boolean DEBUG = false;
 	MemorySegment memorySegment;
@@ -152,6 +154,17 @@ public final class StringTensor implements Externalizable, Comparable {
         return (long) strlen.invokeExact(getSegment());
 	}
 	
+	public void copyFromNative() {
+		long bytes = size();
+		MemorySegment hostSeg = getSegment();
+		long addr = hostSeg.address(); // strong field keeps reachability
+		try {
+			Llama3.copyFromNativeMH.invokeExact(addr, bytes);
+		} catch (Throwable e) {
+			throw new RuntimeException("CopyFromNative transfer failed , "+ this.getSegment(), e);
+		}
+	}
+	
 	@Override
 	public void writeExternal(ObjectOutput out) throws IOException {
 		out.writeInt(size());
@@ -171,8 +184,14 @@ public final class StringTensor implements Externalizable, Comparable {
 	}
 	
 	public static void main(String[] args) throws Throwable {
+		Llama3 llama = new Llama3();
+	    NativeLoader.loadMethods();
 		StringTensor s = new StringTensor(args[0]);
-		System.out.println(s+" = "+s.strlen());
+		DeviceManager.runModel(s);
+		//System.out.println(s+" = "+s.strlen());
+		//StringTensor y = new StringTensor(new byte[15]);
+		//y.copyFromNative();
+		//System.out.println(y);
 	}
 
 }

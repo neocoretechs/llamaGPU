@@ -76,7 +76,6 @@ public final class ArrayStringTensor implements Externalizable, Comparable {
 	}
 	public void copy(int index, byte[] utf8Bytes) {
 		allocate(index, utf8Bytes);
-
 	}
 	public void copy(int index, String s) {
 		copy(index, getUTF8(s));

@@ -1,5 +1,6 @@
 package com.llama4j;
 
+import java.lang.foreign.MemorySegment;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class DeviceManager {
@@ -221,7 +222,15 @@ public final class DeviceManager {
     		throw new RuntimeException(e);
     	}
     }
-    
+    static void runModel(StringTensor model) {
+    		MemorySegment hostSeg = model.getSegment();
+    		long addr = hostSeg.address();
+    		try {
+    			Llama3.runModelMH.invokeExact(addr);
+    		} catch (Throwable e) {
+    			throw new RuntimeException(e);
+    		}
+    }
     static void weightedSumCpu(FloatTensor att, FloatTensor xb, FloatTensor vCache, int h, int headSize, int attOffset, int xbOffset, int kvDim, int kvMul, int position, int token) {
     	//void launch_weighted_sum(uint8_t* Att, uint8_t* xb, uint8_t* vCache, int h, int headSize, 
 		// int attOffset, int xbOffset, int vcOffset, int kvDim, int kvMul, int position, int token, int size) 

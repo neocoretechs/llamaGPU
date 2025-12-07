@@ -287,6 +287,7 @@ public final class NativeLoader {
 	    );
 		System.out.println("copyHostToDevice:"+Llama3.copyHostToDeviceMH);
 	    // copyDeviceToHost
+	    // copyDeviceToHost
 	    Llama3.copyDeviceToHostMH = linker.downcallHandle(
 	        lookup.find("copyDeviceToHost").get(),
 	        FunctionDescriptor.ofVoid(ValueLayout.JAVA_LONG, // uint64_t device pt
@@ -294,5 +295,17 @@ public final class NativeLoader {
 	                                  ValueLayout.JAVA_LONG) // size_t bytes
 	    );
 		System.out.println("copyDeviceToHost:"+Llama3.copyDeviceToHostMH);
+
+	    Llama3.copyFromNativeMH = linker.downcallHandle(
+	        lookup.find("copyFromNative").get(),
+	        FunctionDescriptor.ofVoid(ValueLayout.JAVA_LONG,   // uint8_t* tensor, or uint8_t** arraytensor
+	                                  ValueLayout.JAVA_LONG) // size_t bytes
+	    );
+		System.out.println("copyFromNative:"+Llama3.copyFromNativeMH);
+	    Llama3.runModelMH = linker.downcallHandle(
+		        lookup.find("run_model").get(),
+		        FunctionDescriptor.ofVoid(ValueLayout.JAVA_LONG)   // uint8_t* tensor, or uint8_t** arraytensor
+		    );
+		System.out.println("run_model:"+Llama3.runModelMH);
 	}
 }
