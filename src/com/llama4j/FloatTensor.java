@@ -22,14 +22,11 @@ import jdk.incubator.vector.VectorSpecies;
  */
 public abstract class FloatTensor implements Externalizable, Comparable {
 	public static boolean DEBUG = false;
-	public static final boolean DO_SDOT_COMPARE = false;
     static final int VECTOR_BIT_SIZE = Integer.getInteger("llama.VectorBitSize", VectorShape.preferredShape().vectorBitSize());
     static final boolean USE_VECTOR_API = VECTOR_BIT_SIZE != 0;
-	private boolean VERIFY_GPU_DATA = false;
 	
     private long devicePtr; // 0 if not uploaded
     private boolean uploaded = false;
-    private volatile DeviceMemoryReclaim deviceReclaim;
 	public static int dontMatch = 0;
 	public static int totalSdot = 0;
 	//public static Object mutex = new Object();
@@ -91,78 +88,7 @@ public abstract class FloatTensor implements Externalizable, Comparable {
     }
     
     public float dot(int thisOffset, FloatTensor that, int thatOffset, int size) {
-      	return cudaDot(this, thisOffset, that, thatOffset, size);
-		//return scalarDot(this, thisOffset, that, thatOffset, size);
-    }
-    
-   
-    /**
-     * If USE_CUDA flag is set, all sdot routes through here.
-     * @param thiz
-     * @param thisOffset
-     * @param that
-     * @param thatOffset
-     * @param size
-     * @return
-     */
-    public static float cudaDot(FloatTensor thiz, int thisOffset, FloatTensor that, int thatOffset, int size) {
-    	if(DEBUG)
-    		System.out.printf("%s thread:%s thisOffset:%d thatOffset:%d size:%d%n", 
-    				thiz.getClass().getName(), Thread.currentThread().getName(), thisOffset, thatOffset, size);
-    	float result = 0.0f;
-    	try {
-    		result = DeviceManager.sdotCpu(thiz, thisOffset,that, thatOffset, size);
-    		if(DO_SDOT_COMPARE)
-    			compareSdotTest(result, thiz, thisOffset, that, thatOffset, size);
-    	} catch(Throwable e) {
-    		throw new RuntimeException(e);
-    	}
-    	return result;
-    }
-    /**
-     * Compare the result of GPU sdot and CPU sdot to test numeric drift. Since sdot is the backbone of all our
-     * computation, ensure the variance is within tolerance. Increase global counters with results.
-     * @param GPUresult The result of the GPU sdot operation
-     */
-    private static synchronized void compareSdotTest(float GPUresult, FloatTensor thiz, int thisOffset, FloatTensor that, int thatOffset, int size) {
- 		float result2 = scalarDot(thiz, thisOffset, that, thatOffset, size);
-  		if(Math.abs(GPUresult - result2) > 1e-5f) {
-			++dontMatch;
-			//if(DEBUG)
-				System.out.printf("Sdot values dont match: %s %s thread:%s thisOffset:%d thatOffset:%d size:%d  GPU=%.6f CPU=%.6f %d dont match out of %d%n", 
-				thiz.getClass().getName(), that.getClass().getName(), Thread.currentThread().getName(), thisOffset, thatOffset, size, GPUresult, result2, dontMatch, totalSdot);	
-		}
- 		++totalSdot;
-    }
-    
-    public void allocDevice() {
-    	devicePtr = allocDevice(getSegment().byteSize());
-     	deviceReclaim = new DeviceMemoryReclaim(this);	
-    }
-    
-    public void freeDevice() {
-    	if(isAllocated()) {
-    		try {
-				Llama3.freeDevicePtr.invokeExact(devicePtr);
-			} catch (Throwable e) {}
-       		DeviceMemoryLedger.release(getSegment().byteSize());
-    		DeviceManager.remove(devicePtr);
-    		uploaded = false;
-    		devicePtr = 0L;
-    	}
-    }
-    
-    private static long allocDevice(long bytes) {
-    	if(DeviceMemoryLedger.tryReserve(bytes)) {
-    		try {
-				return (long) Llama3.allocDevicePtr.invokeExact(bytes);
-			} catch (Throwable e) {
-				DeviceMemoryLedger.onAllocationFailure();
-				throw new RuntimeException("Failed to reserve "+bytes+" on device!", e);
-			}
-    	}
-    	DeviceMemoryLedger.onAllocationFailure();
-		throw new RuntimeException("Failed to reserve "+bytes+" on device!");
+		return scalarDot(this, thisOffset, that, thatOffset, size);
     }
     
     public long devicePtrOr0() {
@@ -200,23 +126,6 @@ public abstract class FloatTensor implements Externalizable, Comparable {
      */
     void matmul(FloatTensor that, FloatTensor out, int dim0, int dim1) {
     	//long nanos1 = System.nanoTime();
-    	
-    	/*
-    	out.copyDeviceToHost("comparison test");
-    	nanos1 = System.nanoTime() - nanos1;
-    	FloatTensor test = ArrayFloatTensor.allocate(dim0);
-    	long nanos2 = System.nanoTime();
-    	Parallel.parallelFor(0, dim0, i -> test.setFloat(i, dot(i * dim1, that, 0, dim1))); // this is matmul
-    	nanos2 = System.nanoTime() - nanos2;
-    	if(nanos1 > nanos2)
-    		System.out.println("GPU was "+(nanos1-nanos2)+" ns slower");
-    	else
-    		System.out.println("GPU was "+(nanos2-nanos1)+" ns faster");
-    	for(int i = 0; i < dim0; i++)
-    		if(Math.abs(test.getFloat(i)-out.getFloat(i)) > 1e-5f)
-    			System.out.println("Gpu does not match "+i+".) "+out.getFloat(i)+", "+test.getFloat(i));
-   		System.out.println("GPU test ENDED for SINGLE: dim0:"+dim0+" dim1:"+dim1+" this len:"+size()+" that len:"+that.size()+" out len:"+out.size());
-   		*/
     	//-----
     	// CPU implementation for vector processing if available
    		Parallel.parallelFor(0, dim0, i -> out.setFloat(i, dot(i * dim1, that, 0, dim1)));
@@ -336,20 +245,15 @@ public abstract class FloatTensor implements Externalizable, Comparable {
     }
     
     FloatTensor softmaxInPlace(int thisOffset, int size) {
-    		DeviceManager.softmax(this, thisOffset, size);
-    		return this;
-    	
-    	//----------------------
     	// CPU implementation for vector processing if available
     	//try (Timer timer = Timer.log("CPU SoftMax:"+String.valueOf(size),TimeUnit.MICROSECONDS)) {
     	// find max value (for numerical stability)
-    	/*float maxVal = max(thisOffset, size);
+    	float maxVal = max(thisOffset, size);
     	// exp and sum
     	mapInPlace(thisOffset, size, f -> (float) Math.exp(f - maxVal));
     	float sum = sum(thisOffset, size);
     	// normalize
-    	return divideInPlace(thisOffset, size, sum);
-    	//}*/
+    	return divideInPlace(thisOffset, size, sum);	
     }
     /**
      * ax + y (get it? single prec. ax, plus y is saxpy)

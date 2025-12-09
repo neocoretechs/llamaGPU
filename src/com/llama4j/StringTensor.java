@@ -14,16 +14,10 @@ import java.lang.invoke.MethodHandle;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
-import com.llama4j.ffi.NativeLoader;
 
 public final class StringTensor implements Externalizable, Comparable {
 	public static boolean DEBUG = false;
 	MemorySegment memorySegment;
-
-	private long devicePtr; // 0 if not uploaded
-	private boolean uploaded = false;
-	private volatile DeviceMemoryReclaim deviceReclaim;
-
 	static short readShort(MemorySegment memorySegment, long offset) {
 		return memorySegment.get(ValueLayout.JAVA_SHORT, offset);
 	}  
