@@ -304,12 +304,17 @@ public final class NativeLoader {
 		System.out.println("copyFromNative:"+Llama3.copyFromNativeMH);
 		   Llama3.loadModelMH = linker.downcallHandle(
 			        lookup.find("load_model").get(),
-			        FunctionDescriptor.ofVoid(ValueLayout.JAVA_LONG)   // uint8_t* tensor, or uint8_t** arraytensor
+			        FunctionDescriptor.ofVoid(ValueLayout.JAVA_LONG, // uint8_t* tensor model path
+			        							ValueLayout.JAVA_INT)  // context size
 			    );
 			System.out.println("load_model:"+Llama3.loadModelMH);
 	    Llama3.runModelMH = linker.downcallHandle(
 		        lookup.find("run_model").get(),
-		        FunctionDescriptor.ofVoid(ValueLayout.JAVA_LONG)   // uint8_t* tensor, or uint8_t** arraytensor
+		        FunctionDescriptor.of(ValueLayout.JAVA_INT,
+		        						ValueLayout.JAVA_LONG, // prompt StringTensor
+		        						ValueLayout.JAVA_FLOAT, // temp
+		        						ValueLayout.JAVA_LONG // IntTensor return tokens
+		        						) // StringTensor return dialog uint8_t* tensor, or uint8_t** ArrayTensor
 		    );
 		System.out.println("run_model:"+Llama3.runModelMH);
 	}

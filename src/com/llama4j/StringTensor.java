@@ -184,21 +184,11 @@ public final class StringTensor implements Externalizable, Comparable {
 	}
 	
 	public static void main(String[] args) throws Throwable {
-		Llama3 llama = new Llama3();
-	    NativeLoader.loadMethods();
 		StringTensor s = new StringTensor(args[0]);
-		try(Timer var = Timer.log("load model")) {
-			DeviceManager.loadModel(s);
-		}
-		StringTensor p = new StringTensor(args[1]);
-		System.out.println("prompt:"+p);
-		try(Timer var = Timer.log("run model")) {
-			DeviceManager.runModel(p);
-		}
-		//System.out.println(s+" = "+s.strlen());
-		//StringTensor y = new StringTensor(new byte[15]);
-		//y.copyFromNative();
-		//System.out.println(y);
+		System.out.println(s+" = "+s.strlen());
+		StringTensor y = new StringTensor(new byte[15]);
+		y.copyFromNative();
+		System.out.println(y);
 	}
 
 }
