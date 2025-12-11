@@ -64,6 +64,9 @@ public final class StringTensor implements Externalizable, Comparable {
 	public void copy(String s) {
 		copy(getUTF8(s));
 	}
+	/**
+	 * Generate a string from the UTF8 byte memorysegment, removing the zero padding, if any
+	 */
 	public String toString() {
 		int len = 0;
 		byte[] utfBytes = memorySegment.toArray(ValueLayout.JAVA_BYTE);

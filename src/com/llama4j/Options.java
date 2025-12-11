@@ -5,7 +5,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 record Options(Path modelPath, String prompt, String systemPrompt, boolean interactive,
-		float temperature, float topp, long seed, int maxTokens, boolean stream, boolean echo,
+		float temperature, float topp, float minp, long seed, int maxTokens, boolean stream, boolean echo,
 		String localNode, String remoteNode, int remotePort) {
 
 	static final int DEFAULT_MAX_TOKENS = 2048;
@@ -35,8 +35,9 @@ record Options(Path modelPath, String prompt, String systemPrompt, boolean inter
 		out.println("  --instruct                    run in instruct (once) mode, default mode");
 		out.println("  --prompt, -p <string>         input prompt");
 		out.println("  --system-prompt, -sp <string> (optional) system prompt");
-		out.println("  --temperature, -temp <float>  temperature in [0,inf], default 0.8");
-		out.println("  --top-p <float>               p value in top-p (nucleus) sampling in [0,1] default 0.95");
+		out.println("  --temperature, -temp <float>  temperature in [0,inf], default 0.3");
+		out.println("  --top-p <float>               use top-p unless min-p != 0. p value in top-p (nucleus) sampling in [0,1] default 0.9");
+		out.println("  --min-p <float>               if min-p != 0, use min-p else use top-p. p value in min-p sampling in [0,1] default .05");
 		out.println("  --seed <long>                 random seed, default System.nanoTime()");
 		out.println("  --max-tokens, -n <int>        number of steps to run for < 0 = limited by context length, default " + DEFAULT_MAX_TOKENS);
 		out.println("  --stream <boolean>            print tokens during generation; may cause encoding artifacts for non ASCII text, default true");
@@ -50,8 +51,9 @@ record Options(Path modelPath, String prompt, String systemPrompt, boolean inter
 	static Options parseOptions(String[] args) {
 		String prompt = null;
 		String systemPrompt = null;
-		float temperature = 0.8f;
-		float topp = 0.95f;
+		float temperature = 0.3f;
+		float topp = 0.9f;
+		float minp = .05f;
 		Path modelPath = null;
 		long seed = System.nanoTime();
 		// Keep max context length small for low-memory devices.
@@ -87,8 +89,9 @@ record Options(Path modelPath, String prompt, String systemPrompt, boolean inter
 				switch (optionName) {
 				case "--prompt", "-p" -> prompt = nextArg;
 				case "--system-prompt", "-sp" -> systemPrompt = nextArg;
-				case "--temperature", "--temp" -> temperature = Float.parseFloat(nextArg);
+				case "--temperature", "-temp" -> temperature = Float.parseFloat(nextArg);
 				case "--top-p" -> topp = Float.parseFloat(nextArg);
+				case "--min-p" -> minp = Float.parseFloat(nextArg);
 				case "--model", "-m" -> modelPath = Paths.get(nextArg);
 				case "--seed", "-s" -> seed = Long.parseLong(nextArg);
 				case "--max-tokens", "-n" -> maxTokens = Integer.parseInt(nextArg);
@@ -102,7 +105,11 @@ record Options(Path modelPath, String prompt, String systemPrompt, boolean inter
 			}
 			}
 		}
-		return new Options(modelPath, prompt, systemPrompt, interactive, temperature, topp, seed, maxTokens, stream, echo, localNode, remoteNode, remotePort);
+		return new Options(modelPath, prompt, systemPrompt, interactive, temperature, topp, minp, seed, maxTokens, stream, echo, localNode, remoteNode, remotePort);
+	}
+	
+	public final int getMaxTokens() {
+		return maxTokens() == -1 ? DEFAULT_MAX_TOKENS : maxTokens();
 	}
 }
 

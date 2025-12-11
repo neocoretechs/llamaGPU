@@ -9,7 +9,10 @@ import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
 import java.nio.ByteOrder;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Stream;
 
 import jdk.incubator.vector.IntVector;
 import jdk.incubator.vector.VectorSpecies;
@@ -28,7 +31,19 @@ final class IntTensor implements Externalizable, Comparable {
 		memorySegment = getArena().allocate(ValueLayout.JAVA_INT, values.length);
 		MemorySegment.copy(values, 0, memorySegment, ValueLayout.JAVA_INT, 0, values.length);
 	}
-
+	
+	IntTensor(IntTensor buf, int length) {
+		memorySegment = getArena().allocate(ValueLayout.JAVA_INT, length);
+		memorySegment.copyFrom(buf.getSegment().asSlice(0, length * Integer.BYTES));
+	}
+	
+	IntTensor(List<Integer> values) {
+		memorySegment = getArena().allocate(ValueLayout.JAVA_INT, values.size());
+		Object[] o = values.toArray();
+		for(int i = 0; i < values.size(); i++)
+			setInt(i,(int)o[i]);
+	}
+	
 	public static IntTensor allocate(int... dims) {
 		int numberOfElements = FloatTensor.numberOfElements(dims);
 		return new IntTensor(new int[numberOfElements]);
@@ -107,6 +122,17 @@ final class IntTensor implements Externalizable, Comparable {
 	@Override
 	public String toString() {
 		return getSegment().toString();//Arrays.toString(getSegment().toArray(ValueLayout.JAVA_INT));
+	}
+
+	public int[] toArray() {
+		return memorySegment.toArray(ValueLayout.JAVA_INT);
+	}
+	
+	public List<Integer> toList() {
+		ArrayList<Integer> a = new ArrayList<Integer>();
+		for(int i = 0; i < size(); i++)
+			a.add(getInt(i));
+		return a;
 	}
 
 }

@@ -110,11 +110,9 @@ final class ArrayFloatTensor extends FloatTensor implements Externalizable, Comp
 		return Arrays.compare(memorySegment.toArray(ValueLayout.JAVA_FLOAT),((ArrayFloatTensor)o).getSegment().toArray(ValueLayout.JAVA_FLOAT));
 	}
 
-
 	@Override
 	public String toString() {
 		return getSegment().toString();//Arrays.toString(getSegment().toArray(ValueLayout.JAVA_FLOAT));
 	}
-
 
 }

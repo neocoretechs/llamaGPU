@@ -7,10 +7,14 @@ import java.lang.foreign.SymbolLookup;
 import java.lang.foreign.ValueLayout;
 import java.util.concurrent.atomic.AtomicReference;
 
-import com.llama4j.FloatTensor;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import com.llama4j.Llama3;
 
 public final class NativeLoader {
+	public static boolean DEBUG = true;
+	private static final Log log = LogFactory.getLog(NativeLoader.class);
     private static volatile boolean loaded = false;
     private NativeLoader() {}
     private enum LibraryState {
@@ -42,11 +46,12 @@ public final class NativeLoader {
 			synchronized (NativeLoader.class) {
 				//.out.println("Loading from paths list of length:"+paths.size());
 				for (final String path : paths) {
-					//System.out.println(path);
+					//if(DEBUG) log.info(path);
 					if(path.endsWith(".so") || path.endsWith(".dll")) {
 						String fname = new File(path).getName();
 						fname = fname.substring(0,fname.indexOf("."));
-						System.out.println("Trying load for:"+fname);
+						if(DEBUG)
+							log.info("Trying load for:"+fname);
 						System.loadLibrary(fname);
 					}
 				}
@@ -55,7 +60,7 @@ public final class NativeLoader {
 		}
 		while (libraryLoaded.get() == LibraryState.LOADING) {
 			try {
-				System.out.println("Waiting for load, retry..");
+				log.info("Waiting for load, retry..");
 				Thread.sleep(10);
 			} catch(final InterruptedException e) {}
 		}
@@ -63,9 +68,9 @@ public final class NativeLoader {
 
 	public static void loadMethods() {
 		Linker linker = Linker.nativeLinker();
-		//System.out.println("linker:"+linker);
+		//if(DEBUG) log.info("linker:"+linker);
 		SymbolLookup lookup = SymbolLookup.loaderLookup();
-		//System.out.println("Loader:"+lookup);
+		//if(DEBUG) log.info("Loader:"+lookup);
 		//
 		//float getFloat(const uint64_t q, int index, int blockSize, int typeSize, int headerBytes) {
 		//    const float* d_q = reinterpret_cast<const float*>(q);
@@ -80,7 +85,8 @@ public final class NativeLoader {
 						ValueLayout.JAVA_INT,	// typesize
 						ValueLayout.JAVA_INT	// headerBytes
 						));
-		System.out.println("getFloat:"+Llama3.getFloat);
+		if(DEBUG)
+		log.info("getFloat:"+Llama3.getFloat);
 		//
 		Llama3.sdotSliceDeviceHandle = linker.downcallHandle(
 				lookup.find("sdotSliceDevice").get(),
@@ -103,15 +109,15 @@ public final class NativeLoader {
 						ValueLayout.JAVA_INT,     // headerBytes B
 						ValueLayout.JAVA_INT	  // Number of elements in tensor
 						));
-		System.out.println("sdotSliceDevice:"+Llama3.sdotSliceDeviceHandle);
-		//System.out.println("cublasHandle:"+Llama3.cublasGetHandle);
+		if(DEBUG) log.info("sdotSliceDevice:"+Llama3.sdotSliceDeviceHandle);
+		//if(DEBUG) log.info("cublasHandle:"+Llama3.cublasGetHandle);
 		//Llama3.cublasFreeHandle = linker.downcallHandle(
 		//		lookup.find("cublasHandleDestroy").get(),
 		//		FunctionDescriptor.ofVoid(
 		//				// return void
 		//				ValueLayout.JAVA_LONG  // pass long handle
 		//				));
-		//System.out.println("cublasHandleDestroy:"+Llama3.cublasFreeHandle);
+		//if(DEBUG) log.info("cublasHandleDestroy:"+Llama3.cublasFreeHandle);
 		Llama3.cudaInit = linker.downcallHandle(
 				lookup.find("cudaInit").get(),
 				FunctionDescriptor.ofVoid());
@@ -121,7 +127,7 @@ public final class NativeLoader {
 						ValueLayout.ADDRESS,    // size_t* free, writes to memorysegments
 						ValueLayout.ADDRESS     // size_t* total
 						));
-		System.out.println("cudaGetMemInfo:"+Llama3.cudaGetMemInfo);
+		if(DEBUG) log.info("cudaGetMemInfo:"+Llama3.cudaGetMemInfo);
 		//launch_rmsnorm_fp32_rowmajor(uint8_t* qA, int indexA, int formatA, int blockSizeA, int typeSizeA, int headerBytesA,
 	    //uint8_t* qB, int indexB, int formatB, int blockSizeB, int typeSizeB, int headerBytesB,
 	    //float* out, int size, float eps) {
@@ -145,7 +151,7 @@ public final class NativeLoader {
 						ValueLayout.JAVA_FLOAT  // eps
 						)
 				);
-		System.out.println("launch_rmsnorm_fp32_rowmajor:"+Llama3.launchRmsnorm);
+		if(DEBUG) log.info("launch_rmsnorm_fp32_rowmajor:"+Llama3.launchRmsnorm);
 		Llama3.launchSoftmaxInplace = linker.downcallHandle(
 				lookup.find("launch_row_softmax_inplace_fp32").get(),
 				FunctionDescriptor.ofVoid(
@@ -154,7 +160,7 @@ public final class NativeLoader {
 						ValueLayout.JAVA_INT  // size
 						)
 				);
-		System.out.println("launch_row_softmax_inplace_fp32:"+Llama3.launchSoftmaxInplace);
+		if(DEBUG) log.info("launch_row_softmax_inplace_fp32:"+Llama3.launchSoftmaxInplace);
 		//void launch_weighted_sum(uint8_t* Att, uint8_t* xb, uint8_t* vCache, int h, int headSize, 
 		// int attOffset, int xbOffset, int vcOffset, int kvDim, int kvMul, int position, int token, int size) 
 		Llama3.launchAV = linker.downcallHandle(
@@ -169,7 +175,7 @@ public final class NativeLoader {
 			        ValueLayout.JAVA_INT, ValueLayout.JAVA_INT //int position, int token
 			    )
 			);
-		System.out.println("launch_weighted_sum:"+Llama3.launchAV);
+		if(DEBUG) log.info("launch_weighted_sum:"+Llama3.launchAV);
 		// void launchMatmul(const uint8_t* qA, int indexA, int formatA, int blockSizeA, int typeSizeA, int headerBytesA,
 		//	    const uint8_t* qB, int indexB, int formatB, int blockSizeB, int typeSizeB, int headerBytesB,
 		//	    uint8_t* out, int dim0, int dim1) {
@@ -187,7 +193,7 @@ public final class NativeLoader {
 			        ValueLayout.JAVA_INT // dim1
 			    )
 			);
-		System.out.println("launch_Matmul:"+Llama3.launchMatmul);
+		if(DEBUG) log.info("launch_Matmul:"+Llama3.launchMatmul);
 		//float launch_cpu_scalar_Dot(const uint8_t* d_q, int indexA, int formatA, int blockSizeA, int typeSizeA, int headerBytesA,
 		//	    const uint8_t* d_k, int indexB, int formatB, int blockSizeB, int typeSizeB, int headerBytesB, int size)
 		Llama3.sdotSimple = linker.downcallHandle(
@@ -208,7 +214,7 @@ public final class NativeLoader {
 						ValueLayout.JAVA_INT,     // headerBytes B
 						ValueLayout.JAVA_INT	  // Number of elements in tensor
 						));
-		System.out.println("launch_cpu_scalar_Dot:"+Llama3.sdotSimple);
+		if(DEBUG) log.info("launch_cpu_scalar_Dot:"+Llama3.sdotSimple);
 		//void launch_qkscores(uint8_t* q, int qOffset, int formatA, int blockSizeA, int typeSizeA, int headerBlockA,
 	    //uint8_t* keyCache, int keyCacheOffset, int formatB, int blockSizeB, int typeSizeB, int headerBlockB, 
 	    //uint8_t* Att, int attOffset, 
@@ -238,7 +244,7 @@ public final class NativeLoader {
 						ValueLayout.JAVA_INT,     // kvDim
 						ValueLayout.JAVA_INT	  // kvMul
 						));
-		System.out.println("launch_qkscores:"+Llama3.launchQK);
+		if(DEBUG) log.info("launch_qkscores:"+Llama3.launchQK);
 	    //void launch_rope(const uint8_t* d_real, int indexA, int formatA, int blockSizeA, int typeSizeA, int headerBytesA,
 	    //const uint8_t* d_imag, int indexB, int formatB, int blockSizeB, int typeSizeB, int headerBytesB,
 	    //uint8_t* d_q, uint8_t* d_k, // state.q , state.k
@@ -266,18 +272,18 @@ public final class NativeLoader {
 						ValueLayout.JAVA_INT,     // headSize
 						ValueLayout.JAVA_INT     // kvDim
 						));
-		System.out.println("launch_rope:"+Llama3.launchRope);
+		if(DEBUG) log.info("launch_rope:"+Llama3.launchRope);
 	    Llama3.allocDevicePtr = linker.downcallHandle(
 		        lookup.find("allocDevicePtr").get(),
 		        FunctionDescriptor.of(ValueLayout.JAVA_LONG, // uint64_t device ptr
 		        					ValueLayout.JAVA_LONG) // size 
 		    );
-		System.out.println("allocDevicePtr:"+Llama3.allocDevicePtr);
+		if(DEBUG) log.info("allocDevicePtr:"+Llama3.allocDevicePtr);
 	    Llama3.freeDevicePtr = linker.downcallHandle(
 		        lookup.find("freeDevicePtr").get(),
 		        FunctionDescriptor.ofVoid(ValueLayout.JAVA_LONG) // uint64_t device ptr
 		    );
-		System.out.println("freeDevicePtr:"+Llama3.freeDevicePtr);
+		if(DEBUG) log.info("freeDevicePtr:"+Llama3.freeDevicePtr);
 		 // copyHostToDevice
 	    Llama3.copyHostToDeviceMH = linker.downcallHandle(
 	        lookup.find("copyHostToDevice").get(),
@@ -285,7 +291,7 @@ public final class NativeLoader {
 	                              ValueLayout.JAVA_LONG, // uint64_t device ptr
 	                              ValueLayout.JAVA_LONG) // int bytes
 	    );
-		System.out.println("copyHostToDevice:"+Llama3.copyHostToDeviceMH);
+		if(DEBUG) log.info("copyHostToDevice:"+Llama3.copyHostToDeviceMH);
 	    // copyDeviceToHost
 	    // copyDeviceToHost
 	    Llama3.copyDeviceToHostMH = linker.downcallHandle(
@@ -294,28 +300,58 @@ public final class NativeLoader {
 	                                  ValueLayout.JAVA_LONG,   // uint8_t* tensor
 	                                  ValueLayout.JAVA_LONG) // size_t bytes
 	    );
-		System.out.println("copyDeviceToHost:"+Llama3.copyDeviceToHostMH);
+		if(DEBUG) log.info("copyDeviceToHost:"+Llama3.copyDeviceToHostMH);
 
 	    Llama3.copyFromNativeMH = linker.downcallHandle(
 	        lookup.find("copyFromNative").get(),
 	        FunctionDescriptor.ofVoid(ValueLayout.JAVA_LONG,   // uint8_t* tensor, or uint8_t** arraytensor
 	                                  ValueLayout.JAVA_LONG) // size_t bytes
 	    );
-		System.out.println("copyFromNative:"+Llama3.copyFromNativeMH);
-		   Llama3.loadModelMH = linker.downcallHandle(
+		if(DEBUG) log.info("copyFromNative:"+Llama3.copyFromNativeMH);
+		Llama3.loadModelMH = linker.downcallHandle(
 			        lookup.find("load_model").get(),
 			        FunctionDescriptor.ofVoid(ValueLayout.JAVA_LONG, // uint8_t* tensor model path
 			        							ValueLayout.JAVA_INT)  // context size
-			    );
-			System.out.println("load_model:"+Llama3.loadModelMH);
+			);
+		if(DEBUG) log.info("load_model:"+Llama3.loadModelMH);
 	    Llama3.runModelMH = linker.downcallHandle(
 		        lookup.find("run_model").get(),
 		        FunctionDescriptor.of(ValueLayout.JAVA_INT,
 		        						ValueLayout.JAVA_LONG, // prompt StringTensor
 		        						ValueLayout.JAVA_FLOAT, // temp
+		        						ValueLayout.JAVA_FLOAT, // mip_p
+		        						ValueLayout.JAVA_FLOAT, // top_p
 		        						ValueLayout.JAVA_LONG // IntTensor return tokens
 		        						) // StringTensor return dialog uint8_t* tensor, or uint8_t** ArrayTensor
 		    );
-		System.out.println("run_model:"+Llama3.runModelMH);
+		if(DEBUG) log.info("run_model:"+Llama3.runModelMH);
+	    Llama3.runModelTokenizeMH = linker.downcallHandle(
+		        lookup.find("run_model_tokenize").get(),
+		        FunctionDescriptor.of(ValueLayout.JAVA_INT,
+		        						ValueLayout.JAVA_LONG, // prompt StringTensor
+		        						ValueLayout.JAVA_FLOAT, // temp
+		        						ValueLayout.JAVA_FLOAT, // mip_p
+		        						ValueLayout.JAVA_FLOAT, // top_p
+		        						ValueLayout.JAVA_LONG // IntTensor return tokens
+		        						) // StringTensor return dialog uint8_t* tensor, or uint8_t** ArrayTensor
+		    );
+		if(DEBUG) log.info("run_model_tokenize:"+Llama3.runModelTokenizeMH);
+		Llama3.stringToTokenMH = linker.downcallHandle(
+			    lookup.find("string_to_token").get(),
+			    FunctionDescriptor.of(ValueLayout.JAVA_INT,
+			        					ValueLayout.JAVA_LONG, // prompt StringTensor
+			        					ValueLayout.JAVA_LONG // IntTensor return tokens
+			        					) // StringTensor return dialog uint8_t* tensor, or uint8_t** ArrayTensor
+			    );
+		if(DEBUG) log.info("string_to_token:"+Llama3.stringToTokenMH);
+		Llama3.tokenToStringMH = linker.downcallHandle(
+				lookup.find("token_to_string").get(),
+				FunctionDescriptor.of(ValueLayout.JAVA_INT,
+				        					ValueLayout.JAVA_LONG, // IntTensor of tokens
+				        					ValueLayout.JAVA_INT, // size
+				        					ValueLayout.JAVA_LONG // StringTensor return string
+				        					)
+				);
+		if(DEBUG) log.info("token_to_string:"+Llama3.tokenToStringMH);
 	}
 }
